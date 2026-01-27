@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Catálogo de Camisetas</title>
+  <style>
+    :root {
+      --bg: #0f1115;
+      --card: #171a21;
+      --text: #e7eaf0;
+      --muted: #9aa1b2;
+      --accent: #4da3ff;
+      --ok: #2ecc71;
+      --no: #e74c3c;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background: linear-gradient(180deg, #0b0d12, #121522);
+      color: var(--text);
+    }
+    header {
+      position: sticky; top: 0; z-index: 10;
+      backdrop-filter: blur(8px);
+      background: rgba(15,17,21,.7);
+      border-bottom: 1px solid #1f2430;
+    }
+    .wrap { max-width: 1100px; margin: auto; padding: 14px; }
+    h1 { font-size: 1.1rem; margin: 0; letter-spacing: .4px; }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+      gap: 14px;
+      padding: 14px;
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid #1f2430;
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 10px 30px rgba(0,0,0,.25);
+      display: flex; flex-direction: column;
+    }
+    .img-wrap { position: relative; aspect-ratio: 1/1; background:#0b0d12; }
+    .img-wrap img { width: 100%; height: 100%; object-fit: contain; }
+    .toggle {
+      position: absolute; right: 10px; bottom: 10px;
+      background: rgba(0,0,0,.6);
+      color: #fff; border: 1px solid #2b3142;
+      border-radius: 999px; padding: 6px 10px; cursor: pointer;
+    }
+    .content { padding: 12px; display: grid; gap: 8px; }
+    .title { font-weight: 700; }
+    .meta { color: var(--muted); font-size: .9rem; }
+    .pill {
+      display: inline-block; padding: 4px 8px; border-radius: 999px;
+      background: #22283a; border: 1px solid #2b3142; font-size: .8rem;
+    }
+    .stock {
+      display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin-top: 6px;
+    }
+    .size {
+      border: 1px solid #2b3142; border-radius: 10px; padding: 6px; text-align: center;
+      font-size: .85rem; background: #121522;
+    }
+    .size.ok { color: var(--ok); }
+    .size.no { color: var(--no); }
+    footer { color: var(--muted); text-align: center; padding: 20px; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap"><h1>⚽ Catálogo de Camisetas</h1></div>
+  </header>
+
+  <main class="grid" id="grid"></main>
+
+  <footer>Stock en tiempo real · Escaneá el QR</footer>
+
+  <script>
+    // 🔧 CONFIGURACIÓN
+    // 1) Publicá tu Google Sheet: Archivo → Compartir → Publicar en la web → Hoja actual → CSV
+    // 2) Pegá el link CSV acá abajo
+    const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vT3B0aMkM5uqxMRiG0eUKbMFmCl1saGVEuDFDp2-qyGFDUJA14-zwQHwuDf3RxWnWRMh405D0RCSiSo/pub?output=csv';
+
+    const SIZES = ['S','M','L','XL','XXL'];
+
+    function csvToRows(csv) {
+      const lines = csv.trim().split(/\r?\n/);
+      const headers = lines.shift().split(',');
+      return lines.map(line => {
+        const cols = line.split(',');
+        const row = {};
+        headers.forEach((h,i)=> row[h.trim()] = (cols[i]||'').trim());
+        return row;
+      });
+    }
+
+    async function load() {
+      const res = await fetch(CSV_URL, { cache: 'no-store' });
+      const text = await res.text();
+      const rows = csvToRows(text);
+      render(rows);
+    }
+
+    function render(rows) {
+      const grid = document.getElementById('grid');
+      grid.innerHTML = '';
+
+      rows.forEach(r => {
+        const card = document.createElement('div');
+        card.className = 'card';
+
+        const imgWrap = document.createElement('div');
+        imgWrap.className = 'img-wrap';
+        const img = document.createElement('img');
+        img.src = r['Foto Frente'];
+        img.alt = `${r['Equipo']} ${r['Año']}`;
+
+        let showingFront = true;
+        const btn = document.createElement('button');
+        btn.className = 'toggle';
+        btn.textContent = 'Ver espalda';
+        btn.onclick = () => {
+          showingFront = !showingFront;
+          img.src = showingFront ? r['Foto Frente'] : r['Foto Espalda'];
+          btn.textContent = showingFront ? 'Ver espalda' : 'Ver frente';
+        };
+
+        imgWrap.append(img, btn);
+
+        const content = document.createElement('div');
+        content.className = 'content';
+        const title = document.createElement('div');
+        title.className = 'title';
+        title.textContent = `${r['Equipo']} – ${r['Año']} – ${r['Tipo']}`;
+
+        const meta = document.createElement('div');
+        meta.className = 'meta';
+        meta.innerHTML = `👤 ${r['Jugador']} · 🔢 ${r['Número']}`;
+
+        const stock = document.createElement('div');
+        stock.className = 'stock';
+        SIZES.forEach(s => {
+          const q = parseInt(r[s]||'0',10) || 0;
+          const d = document.createElement('div');
+          d.className = 'size ' + (q>0 ? 'ok':'no');
+          d.textContent = `${s}: ${q}`;
+          stock.appendChild(d);
+        });
+
+        content.append(title, meta, stock);
+        card.append(imgWrap, content);
+        grid.appendChild(card);
+      });
+    }
+
+    load().catch(err => console.error(err));
+  </script>
+</body>
+</html>
