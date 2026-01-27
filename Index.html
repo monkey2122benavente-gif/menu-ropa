@@ -88,15 +88,19 @@
     const SIZES = ['S','M','L','XL','XXL'];
 
     function csvToRows(csv) {
-      const lines = csv.trim().split(/\r?\n/);
-      const headers = lines.shift().split(',');
-      return lines.map(line => {
-        const cols = line.split(',');
-        const row = {};
-        headers.forEach((h,i)=> row[h.trim()] = (cols[i]||'').trim());
-        return row;
-      });
-    }
+  const lines = csv.trim().split(/\r?\n/);
+  const delimiter = lines[0].includes(';') ? ';' : ',';
+  const headers = lines.shift().split(delimiter);
+
+  return lines.map(line => {
+    const cols = line.split(delimiter);
+    const row = {};
+    headers.forEach((h, i) => {
+      row[h.trim()] = (cols[i] || '').trim();
+    });
+    return row;
+  });
+}
 
     async function load() {
       const res = await fetch(CSV_URL, { cache: 'no-store' });
