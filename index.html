@@ -80,121 +80,116 @@
   <footer>Stock en tiempo real · Escaneá el QR</footer>
 
   <script>
-    // 🔧 CONFIGURACIÓN
-    // 1) Publicá tu Google Sheet: Archivo → Compartir → Publicar en la web → Hoja actual → CSV
-    // 2) Pegá el link CSV acá abajo
-    const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vT3B0aMkM5uqxMRiG0eUKbMFmCl1saGVEuDFDp2-qyGFDUJA14-zwQHwuDf3RxWnWRMh405D0RCSiSo/pub?output=csv';
+  const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vT3B0aMkM5uqxMRiG0eUKbMFmCl1saGVEuDFDp2-qyGFDUJA14-zwQHwuDf3RxWnWRMh405D0RCSiSo/pub?output=csv';
+  const SIZES = ['S','M','L','XL','XXL'];
 
-    const SIZES = ['S','M','L','XL','XXL'];
+  function csvToRows(csv) {
+    const rows = [];
+    let current = '';
+    let insideQuotes = false;
+    let row = [];
 
-    function csvToRows(csv) {
-  const lines = csv.trim().split(/\r?\n/);
-  const delimiter = lines[0].includes(';') ? ';' : ',';
-  const headers = lines.shift().split(delimiter);
+    for (let i = 0; i < csv.length; i++) {
+      const char = csv[i];
+      const next = csv[i + 1];
 
-function csvToRows(csv) {
-  const rows = [];
-  let current = '';
-  let insideQuotes = false;
-  let row = [];
-
-  for (let i = 0; i < csv.length; i++) {
-    const char = csv[i];
-    const next = csv[i + 1];
-
-    if (char === '"' && next === '"') {
-      current += '"';
-      i++;
-    } else if (char === '"') {
-      insideQuotes = !insideQuotes;
-    } else if (char === ',' && !insideQuotes) {
-      row.push(current);
-      current = '';
-    } else if ((char === '\n' || char === '\r') && !insideQuotes) {
-      if (current.length > 0 || row.length > 0) {
+      if (char === '"' && next === '"') {
+        current += '"';
+        i++;
+      } else if (char === '"') {
+        insideQuotes = !insideQuotes;
+      } else if (char === ',' && !insideQuotes) {
         row.push(current);
-        rows.push(row);
+        current = '';
+      } else if ((char === '\n' || char === '\r') && !insideQuotes) {
+        if (current.length > 0 || row.length > 0) {
+          row.push(current);
+          rows.push(row);
+        }
+        current = '';
+        row = [];
+      } else {
+        current += char;
       }
-      current = '';
-      row = [];
-    } else {
-      current += char;
-    }
-  }
-
-  if (current.length > 0 || row.length > 0) {
-    row.push(current);
-    rows.push(row);
-  }
-
-  const headers = rows.shift().map(h => h.trim());
-  return rows.map(cols => {
-    const obj = {};
-    headers.forEach((h, idx) => obj[h] = (cols[idx] || '').trim());
-    return obj;
-  });
-}
-
-    async function load() {
-      const res = await fetch(CSV_URL, { cache: 'no-store' });
-      const text = await res.text();
-      const rows = csvToRows(text);
-      render(rows);
     }
 
-    function render(rows) {
-      const grid = document.getElementById('grid');
-      grid.innerHTML = '';
+    if (current.length > 0 || row.length > 0) {
+      row.push(current);
+      rows.push(row);
+    }
 
-      rows.forEach(r => {
-        const card = document.createElement('div');
-        card.className = 'card';
+    const headers = rows.shift().map(h => h.trim());
+    return rows.map(cols => {
+      const obj = {};
+      headers.forEach((h, idx) => obj[h] = (cols[idx] || '').trim());
+      return obj;
+    });
+  }
 
-        const imgWrap = document.createElement('div');
-        imgWrap.className = 'img-wrap';
-        const img = document.createElement('img');
-        img.src = r['Foto Frente'];
-        img.alt = `${r['Equipo']} ${r['Año']}`;
+  async function load() {
+    const res = await fetch(CSV_URL, { cache: 'no-store' });
+    const text = await res.text();
+    const rows = csvToRows(text);
+    render(rows);
+  }
 
-        let showingFront = true;
-        const btn = document.createElement('button');
-        btn.className = 'toggle';
-        btn.textContent = 'Ver espalda';
-        btn.onclick = () => {
-          showingFront = !showingFront;
-          img.src = showingFront ? r['Foto Frente'] : r['Foto Espalda'];
-          btn.textContent = showingFront ? 'Ver espalda' : 'Ver frente';
-        };
+  function render(rows) {
+    const grid = document.getElementById('grid');
+    grid.innerHTML = '';
 
-        imgWrap.append(img, btn);
+    rows.forEach(r => {
+      const card = document.createElement('div');
+      card.className = 'card';
 
-        const content = document.createElement('div');
-        content.className = 'content';
-        const title = document.createElement('div');
-        title.className = 'title';
-        title.textContent = `${r['Equipo']} – ${r['Año']} – ${r['Tipo']}`;
+      const imgWrap = document.createElement('div');
+      imgWrap.className = 'img-wrap';
 
-        const meta = document.createElement('div');
-        meta.className = 'meta';
-        meta.innerHTML = `👤 ${r['Jugador']} · 🔢 ${r['Número']}`;
+      const img = document.createElement('img');
+      img.src = r['foto frontal'] || '';
+      img.alt = `${r['Equipo'] || ''} ${r['Año'] || ''}`;
 
-        const stock = document.createElement('div');
-        stock.className = 'stock';
-        SIZES.forEach(s => {
-          const q = parseInt(r[s]||'0',10) || 0;
-          const d = document.createElement('div');
-          d.className = 'size ' + (q>0 ? 'ok':'no');
-          d.textContent = `${s}: ${q}`;
-          stock.appendChild(d);
-        });
+      let showingFront = true;
+      const btn = document.createElement('button');
+      btn.className = 'toggle';
+      btn.textContent = 'Ver espalda';
 
-        content.append(title, meta, stock);
-        card.append(imgWrap, content);
-        grid.appendChild(card);
+      btn.onclick = () => {
+        showingFront = !showingFront;
+        img.src = showingFront ? (r['foto frontal'] || '') : (r['foto trasera'] || '');
+        btn.textContent = showingFront ? 'Ver espalda' : 'Ver frente';
+      };
+
+      imgWrap.append(img, btn);
+
+      const content = document.createElement('div');
+      content.className = 'content';
+
+      const title = document.createElement('div');
+      title.className = 'title';
+      title.textContent = `${r['Equipo'] || ''} – ${r['Año'] || ''} – ${r['Tipo'] || ''}`;
+
+      const meta = document.createElement('div');
+      meta.className = 'meta';
+      meta.innerHTML = `👤 ${r['Jugador'] || '-'} · 🔢 ${r['Número'] || '-'}`;
+
+      const stock = document.createElement('div');
+      stock.className = 'stock';
+
+      SIZES.forEach(s => {
+        const q = parseInt(r[s] || '0', 10) || 0;
+        const d = document.createElement('div');
+        d.className = 'size ' + (q > 0 ? 'ok' : 'no');
+        d.textContent = `${s}: ${q}`;
+        stock.appendChild(d);
       });
-    }
 
-    load().catch(err => console.error(err));
-  </script>
+      content.append(title, meta, stock);
+      card.append(imgWrap, content);
+      grid.appendChild(card);
+    });
+  }
+
+  load().catch(err => console.error(err));
+</script>
 </body>
 </html>
