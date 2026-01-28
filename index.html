@@ -92,13 +92,46 @@
   const delimiter = lines[0].includes(';') ? ';' : ',';
   const headers = lines.shift().split(delimiter);
 
-  return lines.map(line => {
-    const cols = line.split(delimiter);
-    const row = {};
-    headers.forEach((h, i) => {
-      row[h.trim()] = (cols[i] || '').trim();
-    });
-    return row;
+function csvToRows(csv) {
+  const rows = [];
+  let current = '';
+  let insideQuotes = false;
+  let row = [];
+
+  for (let i = 0; i < csv.length; i++) {
+    const char = csv[i];
+    const next = csv[i + 1];
+
+    if (char === '"' && next === '"') {
+      current += '"';
+      i++;
+    } else if (char === '"') {
+      insideQuotes = !insideQuotes;
+    } else if (char === ',' && !insideQuotes) {
+      row.push(current);
+      current = '';
+    } else if ((char === '\n' || char === '\r') && !insideQuotes) {
+      if (current.length > 0 || row.length > 0) {
+        row.push(current);
+        rows.push(row);
+      }
+      current = '';
+      row = [];
+    } else {
+      current += char;
+    }
+  }
+
+  if (current.length > 0 || row.length > 0) {
+    row.push(current);
+    rows.push(row);
+  }
+
+  const headers = rows.shift().map(h => h.trim());
+  return rows.map(cols => {
+    const obj = {};
+    headers.forEach((h, idx) => obj[h] = (cols[idx] || '').trim());
+    return obj;
   });
 }
 
